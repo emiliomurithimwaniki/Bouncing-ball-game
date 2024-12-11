@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vertical Posts Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      display: block;
+    }
+    #scoreDisplay {
+      position: justified;
+      top: 10px;
+      right: 10px;
+      font-size: 40px;
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <!-- Add audio elements for background music, jump, and collision sounds -->
+  <audio id="backgroundMusic" src="" loop></audio>
+  <audio id="jumpSound" src="jump.mp3"></audio>
+  <audio id="collisionSound" src="collision.mp3"></audio>
+
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  
+  <!-- Add buttons for controlling the game -->
+  <button onclick="pauseGame()">Pause</button>
+  <button onclick="restartGame()">Restart</button>
+  <button onclick="resetScores()">Reset Scores</button>
+
+  <!-- Display the current score and highest score -->
+  <div id="scoreDisplay">Score: 0<br>Highest Score: 0</div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Load audio elements
+    const backgroundMusic = document.getElementById('backgroundMusic');
+    const jumpSound = document.getElementById('jumpSound');
+    const collisionSound = document.getElementById('collisionSound');
+
+    // Array of background sounds
+    const backgroundSounds = ['background1.mp3', 'background2.mp3', 'background3.mp3'];
+
+    const ball = {
+      x: 50,
+      y: canvas.height / 2,
+      radius: 10,
+      color: 'blue',
+      velocity: 0,
+      gravity: 0.3,
+      jumpStrength: -5
+    };
+
+    const posts = [];
+    const postWidth = 30;
+    const postGap = 200;
+    let score = 0;
+    let highestScore = localStorage.getItem('highestScore') || 0; // Retrieve highest score from localStorage
+    let gamePaused = false;
+    let gameEnded = false;
+
+    // Display elements
+    const scoreDisplay = document.getElementById('scoreDisplay');
+
+    function generatePosts() {
+      posts.push({ x: canvas.width, openingTop: Math.random() * (canvas.height - postGap) });
+    }
+
+    function drawBall() {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = ball.color;
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function drawPosts() {
+      for (const post of posts) {
+        ctx.fillStyle = 'green';
+        ctx.fillRect(post.x, 0, postWidth, post.openingTop);
+        ctx.fillRect(post.x, post.openingTop + postGap, postWidth, canvas.height - post.openingTop - postGap);
+      }
+    }
+
+    function collisionDetection() {
+      for (const post of posts) {
+        if (
+          ball.x + ball.radius > post.x &&
+          ball.x - ball.radius < post.x + postWidth &&
+          (ball.y - ball.radius < post.openingTop || ball.y + ball.radius > post.openingTop + postGap)
+        ) {
+          endGame();
+        }
+      }
+    }
+
+    function endGame() {
+      gameEnded = true;
+      collisionSound.play(); // Play collision sound
+
+      if (score > highestScore) {
+        highestScore = score;
+        localStorage.setItem('highestScore', highestScore); // Save new highest score to localStorage
+      }
+
+      alert(`Game Over! Your score is: ${score}\nHighest Score: ${highestScore}`);
+      resetGame();
+    }
+
+    function resetGame() {
+      ball.y = canvas.height / 2;
+      ball.velocity = 0;
+      posts.length = 0;
+      score = 0;
+      gameEnded = false;
+
+      // Change background music for the new game
+      const randomBackground = backgroundSounds[Math.floor(Math.random() * backgroundSounds.length)];
+      backgroundMusic.src = randomBackground;
+      backgroundMusic.play();
+    }
+
+    function updateScoreDisplay() {
+      scoreDisplay.innerHTML = `Score: ${score}<br>Highest Score: ${highestScore}`;
+    }
+
+    function gameLoop() {
+      if (!gamePaused && !gameEnded) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ball.velocity += ball.gravity;
+        ball.y += ball.velocity;
+
+        drawBall();
+        drawPosts();
+        collisionDetection();
+        updateScoreDisplay();
+
+        if (ball.y > canvas.height || ball.y < 0) {
+          endGame();
+        }
+
+        if (posts.length === 0 || posts[posts.length - 1].x < canvas.width - 200) {
+          generatePosts();
+          score++;
+        }
+
+        for (const post of posts) {
+          post.x -= 5;
+        }
+
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    // Initial background music for the first game
+    const initialBackground = backgroundSounds[Math.floor(Math.random() * backgroundSounds.length)];
+    backgroundMusic.src = initialBackground;
+    backgroundMusic.play();
+
+    document.addEventListener('click', () => {
+      if (!gamePaused && !gameEnded) {
+        ball.velocity = ball.jumpStrength;
+        jumpSound.play(); // Play jump sound
+      } else if (gameEnded) {
+        resetGame();
+        gameLoop();
+      }
+    });
+
+    // Function to pause the game
+    function pauseGame() {
+      gamePaused = !gamePaused;
+      if (gamePaused) {
+        alert('Game Paused');
+      } else {
+        gameLoop();
+      }
+    }
+
+    // Function to restart the game
+    function restartGame() {
+      resetGame();
+      gameLoop();
+    }
+
+    // Function to reset scores
+    function resetScores() {
+      localStorage.removeItem('highestScore');
+      highestScore = 0;
+      updateScoreDisplay();
+      alert('Scores reset successfully!');
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>
